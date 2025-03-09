@@ -1,16 +1,25 @@
 package org.example
 
-//TIP 코드를 <b>실행</b>하려면 <shortcut actionId="Run"/>을(를) 누르거나
-// 에디터 여백에 있는 <icon src="AllIcons.Actions.Execute"/> 아이콘을 클릭하세요.
-fun main() {
-    val name = "Kotlin"
-    //TIP 캐럿을 강조 표시된 텍스트에 놓고 <shortcut actionId="ShowIntentionActions"/>을(를) 누르면
-    // IntelliJ IDEA이(가) 수정을 제안하는 것을 확인할 수 있습니다.
-    println("Hello, " + name + "!")
+import kotlinx.coroutines.*
 
-    for (i in 1..5) {
-        //TIP <shortcut actionId="Debug"/>을(를) 눌러 코드 디버그를 시작하세요. 1개의 <icon src="AllIcons.Debugger.Db_set_breakpoint"/> 중단점을 설정해 드렸습니다
-        // 언제든 <shortcut actionId="ToggleLineBreakpoint"/>을(를) 눌러 중단점을 더 추가할 수 있습니다.
-        println("i = $i")
+fun main() = runBlocking<Unit> {
+    /** 시작 시간 등록 */
+    val startTime = System.currentTimeMillis()
+
+    /** 플랫폼1에서 등록한 관람객 목록을 가져오는 코루틴 */
+    val participantDeferred1: Deferred<Array<String>> = async(Dispatchers.IO) {
+        delay(1000L)
+        return@async arrayOf("enso", "whk")
     }
+    val participant1: Array<String> = participantDeferred1.await()
+
+    /** 플랫폼2에서 등록한 관람객 목록을 가져오는 코루틴 */
+    val participantDeferred2: Deferred<Array<String>> = async(Dispatchers.IO) {
+        delay(1000L)
+        return@async arrayOf("kukwonho")
+    }
+    val participant2: Array<String> = participantDeferred2.await()
+
+    println("[지난 시간: ${System.currentTimeMillis() - startTime}]")
+    println("참여자 목록 : [${listOf(*participant1, *participant2)}]")
 }

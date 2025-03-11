@@ -36,7 +36,8 @@ Thread-1 스레드를 사용할 수 있으므로 CoroutineDispatcher 작업 대�
 ### CoroutineDispatcher 역할
 정리하자면 CoroutineDispatcher는 코루틴의 실행을 관리하는 주체로 자신에게 실행 요청된 코루틴들을 작업 대기열에 적재하고, 자신이 사용할 수 있는 스레드가 새로운 작업을 실행할 수 있는 상태라면 스레드로 코루틴을 보내 실행될 수 있게 만드는 역할을 합니다.
 > _**[코틀린 코루틴의 정석 책]** 발췌_
-CoroutineDispatcher 객체에 코루틴의 실행이 요청되면 일반적으로는 작업 대기열에 적재한 후에 스레드로 보낸다. 하지만 코루틴의 실행 옵션에 따라 작업 대기열에 적재되지 않고, 즉시 실행될 수도 있고, 작업 대기열이 없는 CoroutineDispatcher 구현체도 있다. 이는 매우 예외적인 경우이다.
+CoroutineDispatcher 객체에 코루틴의 실행이 요청되면 일반적으로는 작업 대기열에 적재한 후에 스레드로 보낸다. <br>
+하지만 코루틴의 실행 옵션에 따라 작업 대기열에 적재되지 않고, 즉시 실행될 수도 있고, 작업 대기열이 없는 CoroutineDispatcher 구현체도 있다. 이는 매우 예외적인 경우이다.
 
 ### 제한된 디스패처 / 무제한 디스패처
 지금까지 그림으로 설명한 CoroutineDispatcher 의 경우 사용할 수 있는 스레드풀을 제한 한경우로 **제한된 디스패처**로 CoroutineDispatcher 객체가 어떤 작업을 처리할지 미리 역할을 부여하고 역할에 맞춰 요청에 대한 실행을 합니다.
@@ -71,17 +72,17 @@ repeat(10) {
 ```
 생성한 CoroutineDispatcher 를 사용하여 코루틴을 실행한다면 아래와 같은 결과를 얻을 수 있습니다.
 
-> **[결과]**
-[Single Thread @coroutine#2] 실행
-[Single Thread @coroutine#3] 실행
-[Single Thread @coroutine#4] 실행
-[Single Thread @coroutine#5] 실행
-[Single Thread @coroutine#6] 실행
-[Single Thread @coroutine#7] 실행
-[Single Thread @coroutine#8] 실행
-[Single Thread @coroutine#9] 실행
-[Single Thread @coroutine#10] 실행
-[Single Thread @coroutine#11] 실행
+> **[결과]** <br>
+[Single Thread @coroutine#2] 실행 <br>
+[Single Thread @coroutine#3] 실행 <br>
+[Single Thread @coroutine#4] 실행 <br>
+[Single Thread @coroutine#5] 실행 <br>
+[Single Thread @coroutine#6] 실행 <br>
+[Single Thread @coroutine#7] 실행 <br>
+[Single Thread @coroutine#8] 실행 <br>
+[Single Thread @coroutine#9] 실행 <br>
+[Single Thread @coroutine#10] 실행 <br>
+[Single Thread @coroutine#11] 실행 <br>
 
 Single Thread 만을 이용해서 코루틴을 실행하는 것을 확인할 수 있습니다.
 
@@ -108,17 +109,17 @@ repeat(10) {
 ```
 생성한 CoroutineDispatcher 를 사용하여 코루틴을 실행한다면 아래와 같은 결과를 얻을 수 있습니다.
 
-> **[결과]**
-[Multi Thread-2 @coroutine#3] 실행
-[Multi Thread-1 @coroutine#2] 실행
-[Multi Thread-1 @coroutine#4] 실행
-[Multi Thread-1 @coroutine#5] 실행
-[Multi Thread-2 @coroutine#6] 실행
-[Multi Thread-1 @coroutine#7] 실행
-[Multi Thread-2 @coroutine#8] 실행
-[Multi Thread-1 @coroutine#9] 실행
-[Multi Thread-2 @coroutine#10] 실행
-[Multi Thread-1 @coroutine#11] 실행
+> **[결과]** <br>
+[Multi Thread-2 @coroutine#3] 실행 <br>
+[Multi Thread-1 @coroutine#2] 실행 <br>
+[Multi Thread-1 @coroutine#4] 실행 <br>
+[Multi Thread-1 @coroutine#5] 실행 <br>
+[Multi Thread-2 @coroutine#6] 실행 <br>
+[Multi Thread-1 @coroutine#7] 실행 <br>
+[Multi Thread-2 @coroutine#8] 실행 <br>
+[Multi Thread-1 @coroutine#9] 실행 <br>
+[Multi Thread-2 @coroutine#10] 실행 <br>
+[Multi Thread-1 @coroutine#11] 실행 <br>
 
 Multi Thread-1 / Multi Thread-2 두개의 스레드를 사용하여 코루틴을 실행한 결과를 얻을 수 있습니다.
 
@@ -226,12 +227,12 @@ fun main() = runBlocking<Unit> {
     }
 }
 ```
->**[결과]**
-[DefaultDispatcher-worker-1 @coroutine#4] 실행
-[DefaultDispatcher-worker-2 @coroutine#3] 실행
-...
-[DefaultDispatcher-worker-1 @coroutine#11] 실행
-[DefaultDispatcher-worker-2 @coroutine#12] 실행
+>**[결과]** <br>
+[DefaultDispatcher-worker-1 @coroutine#4] 실행 <br>
+[DefaultDispatcher-worker-2 @coroutine#3] 실행 <br>
+... <br>
+[DefaultDispatcher-worker-1 @coroutine#11] 실행 <br>
+[DefaultDispatcher-worker-2 @coroutine#12] 실행 <br>
 
 2개의 스레드만을 사용해서 Dispatchers.Default 작업을 수행하는것을 볼 수 있습니다.
 

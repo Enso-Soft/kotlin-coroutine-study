@@ -1,6 +1,7 @@
 package org.example
 
 import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
 
 fun main() = runBlocking<Unit> {
     /** 시작 시간 등록 */

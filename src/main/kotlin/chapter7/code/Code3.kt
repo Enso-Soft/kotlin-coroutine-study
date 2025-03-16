@@ -23,6 +23,7 @@ fun CoroutineScope.searchDBJob(): Job = launch(Dispatchers.IO) {
 
     println(dbResult)
 }
+
 /** 결과:
     [3개의 데이터베이스로 부터 데이터를 가져와 실행]
     db2으로부터 데이터를 가져오는데 성공 했습니다.

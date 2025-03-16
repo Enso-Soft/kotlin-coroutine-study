@@ -24,3 +24,13 @@ fun main() = runBlocking<Unit> {
     println("[지난 시간: ${System.currentTimeMillis() - startTime}ms]")
     println("참여자 목록 : ${listOf(*participant1, *participant2)}")
 }
+
+fun getElapsedTime(startTime: Long): String {
+    return "지난 시간 : ${System.currentTimeMillis() - startTime}ms"
+}
+
+fun printJobState(job: Job) {
+    println("isActivity >> ${job.isActive}")
+    println("isCancelled >> ${job.isCancelled}")
+    println("isCompleted >> ${job.isCancelled}")
+}

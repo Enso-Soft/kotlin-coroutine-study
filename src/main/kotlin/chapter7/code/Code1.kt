@@ -1,4 +1,4 @@
-package org.example.chapter7.code1
+package org.example.chapter7.code
 
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.launch

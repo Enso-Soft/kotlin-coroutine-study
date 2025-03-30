@@ -245,7 +245,7 @@ fun CoroutineScope.searchDBJob(): Job = launch(Dispatchers.IO) {
     val dbResult: List<String> = dbResultDeferred.awaitAll()
 
     println(dbResult)
-}
+} 
 
 /** 결과:
     [3개의 데이터베이스로 부터 데이터를 가져와 실행]

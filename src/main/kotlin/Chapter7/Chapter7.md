@@ -245,7 +245,7 @@ fun CoroutineScope.searchDBJob(): Job = launch(Dispatchers.IO) {
     val dbResult: List<String> = dbResultDeferred.awaitAll()
 
     println(dbResult)
-} 
+}
 
 /** 결과:
     [3개의 데이터베이스로 부터 데이터를 가져와 실행]
@@ -268,3 +268,474 @@ fun CoroutineScope.searchDBJob(): Job = launch(Dispatchers.IO) {
 
 ### 부모 코루틴의 자식 코루틴에 대한 완료 의존성
 부모 코루틴은 모든 자식 코루틴이 실행 완료돼야 완료될 수 있습니다.<br> 코루틴의 구조화는 큰 작업을 연관된 여러 작은 작업으로 나누는 방식으로 이뤄지는데 작은 작업이 모두 완료돼야 큰 작업이 완료 될 수 있기 때문입니다. 이를 **부모 코루틴이 자식 코루틴에 대해 완료 의존성**을 가진다고 합니다.
+
+```kotlin
+fun main() = runBlocking<Unit> {
+    val startTime = System.currentTimeMillis()
+
+    println("# [부모 코루틴의 자식 코루틴에 대한 완료 의존성] #")
+    /** 부모 코루틴 실행 */
+    val parentJob = launch {
+        /** 자식 코루틴 실행 */
+        launch {
+            delay(1000L)
+            println("[${getElapsedTime(startTime)}] 자식 코루틴 실행 완료")
+        }
+
+        println("[${getElapsedTime(startTime)}] 부모 코루틴이 실행하는 마지막 코드")
+    }
+
+    /** 부모 코루틴 실행 완료/취소 완료 콜백 등록 */
+    parentJob.invokeOnCompletion {
+        println("[${getElapsedTime(startTime)}] 부모 코루틴 실행 완료")
+    }
+}
+
+/** 결과:
+    # [부모 코루틴의 자식 코루틴에 대한 완료 의존성] #
+    [지난 시간 : 7ms] 부모 코루틴이 실행하는 마지막 코드
+    [지난 시간 : 1028ms] 자식 코루틴 실행 완료
+    [지난 시간 : 1029ms] 부모 코루틴 실행 완료
+*/
+```
+
+invokeOnCompletion 함수는 코루틴이 실행 완료되거나 취소 완료됐을 때 실행되는 콜백을 등록하는 함수로 여기에선 부모 코루틴이 완료되는 시간을 출력하는데 사용 됩니다.
+
+코드의 실행 결과를 보면 부모 코루틴은 마지막 코드를 7ms 정도에 완료 했지만 실행 완료 시점은 1029ms 입니다. 부모 코루틴이 마지막 코드를 실행하고 나서 더이상 실행할 코드가 없음에도 즉시 실행 완료되지 않는 이유는 부모 코루틴은 자식 코루틴이 완료되는 시점까지 완료될 수 없는 특성을 갖고 있기 떄문입니다. 실제로 부모 코루틴의 실행 완료 시점인 1029ms는 자식 코루틴이 완료되는 1028ms 직후인 것을 확인할 수 있습니다.
+
+#### 코루틴 실행 완료 중 상태
+그렇다면 부모 코루틴은 마지막 코드를 실행한 시점으로 부터 자식 코루틴의 실행 완료를 기다릴 때까지 어떤 상태를 가질까? 바로 **'실행 완료 중'** 상태를 가지게 됩니다.
+
+![](https://velog.velcdn.com/images/tien/post/93eaee1c-70af-44a2-aaf1-5905c1d72ec5/image.png)
+
+'실행 완료 중' 상태란 코루틴의 모든 코드가 실행됐지만 자식 코루틴이 실행중인 경우 코루틴이 갖는 상태를 말합니다. 코루틴은 더 이상 실행할 코드가 없더라도 자식 코루틴들이 모두 완료될 때까지 실행 완료될 수 없기에 '실행 완료 중' 상태에 머뭅니다. **'실행 완료 중' 상태의 코루틴은 자식 코루틴이 모두 실행 완료되면 자동으로 '실행 완료' 상태로 바뀐다.**
+
+#### 코루틴 실행 완료 중 상태의 Job 상태 값
+```kotlin 
+fun main() = runBlocking<Unit> {
+    val startTime = System.currentTimeMillis()
+
+    println("# [부모 코루틴의 자식 코루틴에 대한 완료 의존성] #")
+    /** 부모 코루틴 실행 */
+    val parentJob = launch {
+        /** 자식 코루틴 실행 */
+        launch {
+            delay(1000L)
+            println("[${getElapsedTime(startTime)}] 자식 코루틴 실행 완료")
+        }
+
+        println("[${getElapsedTime(startTime)}] 부모 코루틴이 실행하는 마지막 코드")
+    }
+
+    /** 부모 코루틴 실행 완료/취소 완료 콜백 등록 */
+    parentJob.invokeOnCompletion {
+        println("[${getElapsedTime(startTime)}] 부모 코루틴 실행 완료")
+    }
+
+    delay(500L)
+    printJobState(parentJob)
+}
+
+/** 결과:
+    # [부모 코루틴의 자식 코루틴에 대한 완료 의존성] #
+    [지난 시간 : 7ms] 부모 코루틴이 실행하는 마지막 코드
+    isActivity >> true
+    isCancelled >> false
+    isCompleted >> false
+    [지난 시간 : 1028ms] 자식 코루틴 실행 완료
+    [지난 시간 : 1029ms] 부모 코루틴 실행 완료
+*/
+```
+
+부모 코루틴을 실행하고, 500ms 이후 부모 코루틴의 상태를 출력한다면
+isActivity >> true
+isCancelled >> false
+isCompleted >> false
+
+위와 같은 상태가 출력되는것을 확인할 수 있습니다.
+
+|코루틴 상태|isActivity|isCancelled|isCompleted|
+|:---:|:---:|:---:|:---:|
+|생성|false|false|false|
+|실행 중|true|false|false|
+|실행 완료 중|true|false|false|
+|실행 완료|false|false|true
+|취소 중|false|true|false|
+|취소 완료|false|true|true|
+
+Job 상태표를 본다면 '실행 중'과 '실행 완료 중'은 완전히 같은 Job 상태 값을 가집니다. 그래서 두개의 상태는 구분 없이 사용 됩니다.
+
+>'실행 중' 상태와 '실행 완료 중' 상태의 상태 값은 구분되지 않지만 코루틴의 실행 흐름을 이해하기 위해서는 자식 코루틴이 완료되지 않으면 부모 코루틴도 실행 완료될 수 없다는 점을 이해하는 것이 중요하다!
+
+## 7-3. CoroutineScope 사용해 코루틴 관리하기
+CoroutineScope 객체는 자신의 범위 내에서 생성된 코루틴들에게 실행 환경을 제공하고, 이들의 실행 범위를 관리하는 역할을 합니다.
+
+### CoroutineScope 생성하기
+#### CoroutineScope 인터페이스 구현을 통한 생성
+CoroutineScope 인터페이스는 다음과 같이 선언돼 있습니다.
+
+```kotlin
+public interface CoroutineScope {
+    public val coroutineContext: CoroutineContext
+}
+```
+
+CoroutineScope 인터페이스는 코루틴의 실행 환경인 CoroutineContext를 가진 단순한 인터페이스로 이 인터페이스를 구현한 구체적인 클래스는 다음과 같이 만들 수 있습니다.
+
+```kotlin
+class CustomCoroutineScope : CoroutineScope {
+    override val coroutineContext: CoroutineContext =
+    	Job() + newSingleThreadContext("CustomScopeThread")
+}
+```
+
+위 CustomCoroutineScope는 다음과 같이 인스턴스화해 사용할 수 있습니다.
+
+```kotlin
+fun main() {
+    /** 커스텀 CoroutineScope 사용하기 */
+    println("# [커스텀 CoroutineScope 사용하기] #")
+    val coroutineScope = CustomCoroutineScope()
+    coroutineScope.launch {
+        delay(100L)
+        println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+    }
+    Thread.sleep(200L)
+ }
+ 
+ /** 결과:
+    # [커스텀 CoroutineScope 사용하기] #
+    [CustomScopeThread @coroutine#1] 코루틴 실행 완료
+**/
+ ````
+
+코드의 실행 결과를 보면 launch 코루틴이 CustoScopeThread 스레드를 사용해 실행되며, 이를 통해 CustomCoroutineScope 객체로부터 코루틴 실행 환경을 제공받는 것을 확인할 수 있습니다.
+
+#### CoroutineScope 함수를 사용해 생성
+
+CorotuineScope 객체를 생성하는 또 다른 방법은 CoroutineScope 함수를 사용하는 것입니다.
+
+```kotlin
+public fun CoroutineScope(context: CoroutineContext): CoroutineScope =
+    ContextScope(if (context[Job] != null) context else context + Job())
+
+```
+
+Coroutine Api 에서 제공 되는 함수이며, CoroutineContext를 인자로 입력받아 CoroutineScope 객체를 생성하며, 인자로 입력된 CoroutineContext에 Job 객체가 포함돼 있지 않으면 새로운 Job 객체를 생성합니다.
+
+```kotlin
+fun main() {
+    println("# [CoroutineScope 생성 함수 사용하기] #")
+    val coroutineScope = CoroutineScope(Dispatchers.IO)
+    coroutineScope.launch {
+        delay(100L)
+        println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+    }
+    Thread.sleep(200L)
+}
+
+/** 결과:
+    # [CoroutineScope 생성 함수 사용하기] #
+    [DefaultDispatcher-worker-1 @coroutine#1] 코루틴 실행 완료
+*/
+```
+
+CoroutineScope 함수의 인자에 Dispatchers.IO 를 전달하여 CoroutineScope를 생성한 뒤 launch 코루틴 빌더를 생성하여 실행하면 백그라운드 스레드인 DefaultDispatcher-worker-1으로 보내져 실행되는 것을 확인할 수 있습니다.
+
+### 코루틴에게 실행 환경을 제공하는 CoroutineScope
+#### CoroutineScope가 코루틴에게 실행 환경을 제공하는 방식
+먼저 CoroutineScope 객체가 어떻게 코루틴에게 실행 환경을 제공하는지 알아보자! 이를 살펴보기에 앞서 다음 코드를 통해 Coroutine Api의 launch 코루틴 빌더 함수가 어떻게 선언 되어있는지 알아보자!
+
+```kotlin
+public fun CoroutineScope.launch(
+    context: CoroutineContext = EmptyCoroutineContext,
+    start: CoroutineStart = CoroutineStart.DEFAULT,
+    block: suspend CoroutineScope.() -> Unit
+): Job
+```
+
+이 코드에서 launch 코루틴 빌더 함수는 CoroutineScope의 확장 함수로 선언돼 있어며, launch 함수가 호출되면 다음 과정을 통해 CoroutineScope 객체로부터 실행 환경을 제공 받아 코루틴의 실행 환경을 설정 합니다.
+- 수신 객체인 CoroutineScope로부터 CoroutineContext 객체를 제공 받는다.
+- 제공받은 CoroutineContext 객체에 launch 함수의 context 인자로 넘어온 CoroutineContext를 더한다.
+- 생성된 CoroutineContext에 코루틴 빌더 함수가 호출돼 새로 생성되는 Job을 더한다. 이때 CoroutineContext를 통해 전달되는 Job 객체는 새로 생성되는 Job 객체의 부모 Job 객체가 된다.
+
+```kotlin
+fun main() {
+    val newScope = CoroutineScope(CoroutineName("MyCoroutine") + Dispatchers.IO)
+    newScope.launch(CoroutineName("LaunchCoroutine")) ChildLaunch1@ {
+        println(this.coroutineContext[CoroutineName])
+        println(this.coroutineContext[CoroutineDispatcher])
+
+        val launchJob = this@ChildLaunch1.coroutineContext[Job]
+        val newScopeJob = newScope.coroutineContext[Job]
+        println("launchJob?.parent === newScopeJob >> ${launchJob?.parent === newScopeJob}")
+    }
+    Thread.sleep(1000L)
+}
+
+/** 결과:
+    CoroutineName(LaunchCoroutine)
+    Dispatchers.IO
+    launchJob?.parent === newScopeJob >> true
+**/
+```
+
+이 코드에서 위에 설명한 CoroutineScope 객체로부터 실행 환경을 제공 받아 코루틴 실행 환경을 설정하는 과정을 본다면 아래 표와 같습니다.
+
+![](https://velog.velcdn.com/images/tien/post/9b03b970-fde3-4f38-9784-5a1b8605f2c4/image.png)
+
+![](https://velog.velcdn.com/images/tien/post/66f558f9-d4e7-4eb9-bea9-54eadd9789b3/image.png)
+
+#### CoroutineScope로부터 실행 환경 상속받기
+
+launch 함수가 호출돼 생성되는 코루틴의 CoroutineContext 객체는 launch 함수의 람다식에서 수신 객체인 CoroutineScope를 통해 제공됩니다.
+
+### CoroutineScope에 속한 코루틴의 범위
+#### CoroutineScope에 속한 코루틴의 범위
+각 코루틴 빌더의 람다식은 CoroutineScope 객체를 수신 객체로 가집니다. CoroutineScope 객체는 기본적으로 특정 범위의 코루틴들을 제어하는역할을 합니다. 이번에는 CoroutineScope 객체에 속하는 코루틴의 범위에 대해 알아보자!
+
+```kotlin
+fun main() = runBlocking<Unit> {
+    launch(CoroutineName("Coroutine1")) Coroutine1@ {
+        launch(CoroutineName("Coroutine3")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+
+        launch(CoroutineName("Coroutine4")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+
+    launch(CoroutineName("Coroutine2")) {
+        delay(100L)
+        println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+    }
+}
+
+/** 결과
+	[main @Coroutine2#3] 코루틴 실행 완료
+	[main @Coroutine3#4] 코루틴 실행 완료
+	[main @Coroutine4#5] 코루틴 실행 완료
+**/
+```
+
+![](https://velog.velcdn.com/images/tien/post/2999bffb-09e8-41c6-892c-885a6a9c0dd2/image.png)
+
+위 코드에서 runBlocking의 CoroutineScope 객체의 코루틴 범위는 위 이미지와 같다.
+
+![](https://velog.velcdn.com/images/tien/post/84359c74-4656-4423-a8fd-acac995972b9/image.png)
+
+Coroutine1 람다식의 CoroutineScope 객채의 코루틴 범위는 위 이미지와 같다.
+
+즉 코루틴 빌더 람다식에서 수신 객체로 제공되는 CoroutineScope 객체는 코루틴 빌더로 생성되는 코루틴과 람다식 내에서 CoroutineScope 객체를 사용해 실행되는 모든 코루틴을 포함한다.
+
+#### CoroutineScope를 새로 생성해 기존 CoroutineScope 범위에서 벗어나기
+만약 위 코드에서 Coroutine4 코루틴이 runBlocking 람다식의 CoroutineScope 객체의 범위에서 벗어나야 한다고 해보자. 특정 코루틴만 기존에 존재하면 CoroutineScope 객체의 범위에서 벗어나게 만들려면 새로운 CoroutineScope 객체를 사용해 코루틴을 실행하면 됩니다.
+
+```kotlin
+fun main() = runBlocking<Unit> {
+    launch(CoroutineName("Coroutine1")) Coroutine1@ {
+        launch(CoroutineName("Coroutine3")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+
+        CoroutineScope(Dispatchers.IO).launch(CoroutineName("Coroutine4")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+
+    launch(CoroutineName("Coroutine2")) {
+        delay(100L)
+        println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+    }
+}
+
+/** 결과:
+	[main @Coroutine2#3] 코루틴 실행 완료
+	[DefaultDispatcher-worker-1 @Coroutine4#5] 코루틴 실행 완료
+	[main @Coroutine3#4] 코루틴 실행 완료
+**/
+```
+
+위 코드와 같이 새로운 CoroutineScope(DIspatchers.IO) 함수를 통해 CoroutineScope를 생성하면 runBlokcing 람다식의 CoroutineScope 객체의 범위에서 벗어나 새로운 CoroutineScope 객체의 범위에 속하게 됩니다.
+
+그렇다면 어떻게 Coroutine4 코루틴이 기존 CoroutineScope 객체의 범위에서 벗어날 수 있는 것일까요? 정답은 CoroutineScope 함수가 호출되면 생성되는 새로운 Job 객체에 있습니다.
+
+>코루틴은 Job 객체를 사용해 구조화되는데 CoroutineScope 함수를 사용해 새로운 CoroutineScope 객체를 생성하면 기존 계층 구조를 따르지 않은 새로운 Job 객체가 생성됩니다.
+
+![](https://velog.velcdn.com/images/tien/post/cf072e53-a2c9-455f-b83b-d43ee4b7ee8b/image.png)
+
+### CoroutineScope 취소하기
+CoroutineScope 인터페이스는 확장 함수로 cancel 함수를 지원합니다. CoroutineScope 인터페스의 cancel 함수는 CoroutineScope 객체의 범위에 속한 모든 코루틴을 취소하는 함수로 CoroutineScope 객체에 cancel 함수가 호출되면 범위에서 실행 중인 모든 코루틴에 취소가 요청됩니다.
+
+```kotlin
+fun main() = runBlocking<Unit> {
+    launch(CoroutineName("Coroutine1")) Coroutine1@ {
+        launch(CoroutineName("Coroutine3")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+
+        launch(CoroutineName("Coroutine4")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+
+        this@Coroutine1.cancel()
+    }
+
+    launch(CoroutineName("Coroutine2")) {
+        delay(100L)
+        println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+    }
+}
+
+/** 결과:
+    [main @Coroutine2#3] 코루틴 실행 완료
+*/
+```
+결과를 본다면 Coroutine1의 CoroutineScope 에 cancel 함수를 호출하게 되면 Coroutine3과 Coroutine4의 코루틴이 취소 되며 실행 완료가 되지 않은것을 볼 수 있습니다.
+
+```kotlin
+public fun CoroutineScope.cancel(cause: CancellationException? = null) {
+    val job = coroutineContext[Job] ?: error("Scope cannot be cancelled because it does not have a job: $this")
+    job.cancel(cause)
+}
+```
+
+Coroutine 객체에 cancel 함수가 호출되면 CoroutineScope 객체는 자신의 coroutineContext 프로퍼티를 통해 Job 객체에 접근한 후 cancel 함수를 호출합니다. 즉 자신의 코루틴 Job 객체에 접근해 취소를 요청하며, 이 취소 요청은 자식 코루틴에게 전파돼 부모 코루틴과 자식 코루틴 모두를 취소하게 됩니다.
+
+![](https://velog.velcdn.com/images/tien/post/b53d10e8-7f57-4dcc-8efe-d4aeaed1870c/image.png)
+
+### CoroutineScope 활성화 상태 확인하기
+CoroutineScope 객체는 CoroutineScope 객체가 현재 활성화돼 있는지 확인하는 **isAcitive** 확장 프로퍼티를 제공합니다.
+
+```kotlin
+public val CoroutineScope.isActive: Boolean
+    get() = coroutineContext[Job]?.isActive ?: true
+```
+
+앞서 알아본 cancel 확장 함수와 같이 coroutineContext 프로퍼티를 통해 Job 객체에 접근한 후 isAcitive 프로퍼티를 확인합니다.
+
+## 7-4. 구조화와 Job
+> CoroutineScope 객체를 조작하는 것이 실제로는 CoroutineContext 객체 속의 Job 객체를 조작하는 것이라는 사실을 확인했습니다. 코루틴 구조화의 중심에는 Job 객체가 있습니다.
+
+### runBlocking과 루트 Job
+```kotlin
+fun main() = runBlocking<Unit> { // 루트 Job 생성
+    println("[${Thread.currentThread().name} 코루틴 실행")
+}
+
+/** 결과:
+	[main @coroutine#1 코루틴 실행
+**/
+```
+
+위와 같이 runBlocking 함수를 호출해 코루틴이 생성될 경우 부모 Job이 없는 Job 객체를 생성합니다. 무모 Job 객체가 없는 구조화의 시작점 역할을 하는 Job 객체를 루트 Job이라고 하고, 이 Job 객체에 의해 제어되는 코루틴을 루트 코루틴이라고 합니다.
+
+### Job 구조화 깨기
+#### CoroutineScope를 사용해 구조화 깨기
+CoroutineScope 함수를 통해 CoroutineScope 객체가 생성되면 새로운 루트 Job이 생성되며, 이를 사용해 코루틴의 구조화를 깰 수 있습니다.
+
+```kotlin
+fun main() = runBlocking<Unit> {
+    val newScope = CoroutineScope(Dispatchers.IO)
+    newScope.launch(CoroutineName("Coroutine1")) {
+        launch(CoroutineName("Coroutine3")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+
+        launch(CoroutineName("Coroutine4")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+
+    newScope.launch(CoroutineName("Coroutine2")) {
+    	launch(CoroutineName("Coroutine5")) {
+        	delay(100L)
+        	println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+}
+```
+
+![](https://velog.velcdn.com/images/tien/post/fcf71974-29dc-4a62-b34c-7e9989ce39d0/image.png)
+
+위 그림과 같이 구조화 된것을 확인할 수 있습니다.
+
+#### Job 사용해 구조화 깨기
+CoroutineScope 생성 함수 말고 Job을 직접 사용할 수도 있다.
+```kotlin
+fun main() = runBlocking<Unit> {
+    val rootJob = Job()
+    launch(CoroutineName("Coroutine1") + rootJob) {
+        launch(CoroutineName("Coroutine3")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+
+        launch(CoroutineName("Coroutine4")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+
+    launch(CoroutineName("Coroutine2") + rootJob) {
+    	launch(CoroutineName("Coroutine5") {
+        	delay(100L)
+        	println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+}
+```
+
+![](https://velog.velcdn.com/images/tien/post/d232f489-64ef-4343-a8e8-a4e580e44125/image.png)
+
+위 그림과 같이 구조화 된것을 확인할 수 있습니다.
+
+![](https://velog.velcdn.com/images/tien/post/bf9da765-1bd3-4203-961c-cceb3d639327/image.png)
+
+또한 RootJob에 취소를 요청하게 되면 RootJob을 통해 자식 코루틴에게 취소를 전파할수도 있습니다.
+
+### Job 사용해 일부 코루틴만 취소되지 않게 만들기
+새로 Job 객체를 생성해 계층 구조를 끊음으로써 일부 코루틴만 취소되지 않도록 설정할 수 있다. 앞의 코드에서 Coroutine5만 계층 구조를 끊어 취소되지 않도록 만들어보자.
+
+```kotlin
+fun main() = runBlocking<Unit> {
+    val rootJob = Job()
+    launch(CoroutineName("Coroutine1") + rootJob) {
+        launch(CoroutineName("Coroutine3")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+
+        launch(CoroutineName("Coroutine4")) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+
+    launch(CoroutineName("Coroutine2") + rootJob) {
+        launch(CoroutineName("Coroutine5") + Job()) {
+            delay(100L)
+            println("[${Thread.currentThread().name}] 코루틴 실행 완료")
+        }
+    }
+    
+    delay(50L)
+    rootJob.cancel()
+    delay(1000L)
+}
+
+/** 결과:
+	[main @Coroutine5#6] 코루틴 실행 완료
+**/ 
+```
+
+![](https://velog.velcdn.com/images/tien/post/e71522c6-79eb-42dd-b81d-6ee9dd6962d8/image.png)

@@ -1,12 +1,11 @@
 package org.example.chapter8.code
 
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
 
+/** 8-2.2.1 SupervisorJob 객체를 사용해 예외 전파 제한하기 */
 fun main() = runBlocking<Unit> {
-    launch(CoroutineName("Coroutine1")) {
+    val supervisorJob = SupervisorJob()
+    launch(CoroutineName("Coroutine1") + supervisorJob) {
         launch(CoroutineName("Coroutine3")) {
             throw Exception("예외 발생")
         }
@@ -14,7 +13,7 @@ fun main() = runBlocking<Unit> {
         println("[${Thread.currentThread().name}] 코루틴 실행")
     }
 
-    launch(CoroutineName("Coroutine2")) {
+    launch(CoroutineName("Coroutine2") + supervisorJob) {
         delay(100L)
         println("[${Thread.currentThread().name}] 코루틴 실행")
     }
@@ -23,7 +22,7 @@ fun main() = runBlocking<Unit> {
 }
 
 /** 결과:
-    Exception in thread "main" java.lang.Exception: 예외 발생
+    Exception in thread "main @Coroutine1#3" java.lang.Exception: 예외 발생
     ...
-    종료 코드 1(으)로 완료된 프로세스
+    [main @Coroutine2#3] 코루틴 실행
 **/

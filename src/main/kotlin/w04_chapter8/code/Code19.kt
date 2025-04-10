@@ -1,4 +1,4 @@
-package org.example.w04_chapter8.code
+package w04_chapter8.code
 
 import kotlinx.coroutines.*
 

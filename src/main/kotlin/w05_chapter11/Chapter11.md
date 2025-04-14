@@ -490,3 +490,6 @@ fun main() = runBlocking<Unit>(Dispatchers.IO) {
 
 thread 함수가 새로운 스레드에서 코드 블록이 실행되도록 만들어 1초간 대기 후 continuation에 대한 resume을 `실행 결과`와 함꼐 호출하면 이 값은 `result`에 할당되고 runBlocking 코루틴이 재개됩니다.
 
+
+정석준님 과제 
+여러 코루틴 스코프 환경에서 서로의 순서를 보장하게끔 작성하기 

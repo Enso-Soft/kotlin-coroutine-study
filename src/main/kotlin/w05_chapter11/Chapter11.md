@@ -490,8 +490,22 @@ fun main() = runBlocking<Unit>(Dispatchers.IO) {
 
 thread 함수가 새로운 스레드에서 코드 블록이 실행되도록 만들어 1초간 대기 후 continuation에 대한 resume을 `실행 결과`와 함꼐 호출하면 이 값은 `result`에 할당되고 runBlocking 코루틴이 재개됩니다.
 
+---
 
-정석준님 과제 
-여러 코루틴 스코프 환경에서 서로의 순서를 보장하게끔 작성하기
+정석준님 과제
 
-예를들어 fun saveDB(), fun patchServer() 함수 호출 시 이 둘의 순서를 보장하기 
+- 입력 받은 값을 3초 뒤 출력하는 기능을 만드세요. 
+- 여기에서 입력은 시간 제한없이 받을 수 있고, 출력은 입력 받은 순서대로 출력해야하며, 3초마다 출력을 해야합니다.
+
+1. 첫 번째 해결 방법 ../w05_chapter11.code/study-1.kt
+<br> 싱글 스레드를 사용하는 디스패처로 코루틴을 실행하기
+2. 두 번째 해결 방법 ../w05_chapter11.code/study-2.kt
+<br> Dispatchers.Unconfined 사용해서 Thread.sleep() 사용하기
+3. 세 번째 해결 방법 ../w05_chapter11.code/study-3.kt
+<br> start 인자로 CoroutineStart.UNDISPATCHED 사용해서 Thread.sleep() 사용하기
+4. 네 번째 해결 방법 ../w05_chapter11.code/study-4.kt
+<br> Mutex()를 사용해서 하나의 코루틴 블럭에서 코드를 실행할 수 있도록 함
+5. 다섯 번째 해결 방법 ../w05_chapter11.code/study-5.kt
+<br> Channel을 사용하기.
+6. 여섯 번째 해결 방법 ../w05_chapter11.code/study-6.kt
+<br> invokeOnCompletion 사용해서 순서 보장하기
